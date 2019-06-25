@@ -1,0 +1,87 @@
+#   利用fanyi.youdao.com来进行翻译
+
+#   2019/06/25版本，对应版本：
+#   Date: Tue, 25 Jun 2019 07:04:14 GMT
+#   Expires: Thu, 25 Jul 2019 05:13:46 GMT
+#   Last-Modified: Mon, 08 Apr 2019 06:40:36 GMT
+#   fanyi.min.js  search 'sign'
+#   https://blog.csdn.net/shihongji/article/details/81261348
+
+import urllib.parse
+import urllib.request
+import time
+import random
+import hashlib
+
+
+def getSign(client, tanslateWd, times, key):  # sign值
+    s = client + tanslateWd + times + key
+    m = hashlib.md5()
+    m.update(s.encode('utf-8'))
+    return m.hexdigest()
+
+
+def getTime():  # 时间值
+    return str(int(time.time() * 1000) + random.randint(0, 10))
+
+
+def translator():       #主进程
+    headerData = {                  #从本机获取
+        'Cookie': 'OUTFOX_SEARCH_USER_ID=928245634@10.168.8.63;',
+        'Referer': 'http://fanyi.youdao.com/',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64) '
+                      'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.100 Safari/537.36'
+    }
+
+    key = '@6f#X3=cCuncYssPsuRUE'  # 密钥
+    timeStamp = str(int(time.time() * 1000))  # 获取时间
+    salt = timeStamp + str(random.randint(0, 10))
+    url = 'http://fanyi.youdao.com/translate_o?smartresult=dict&smartresult=rule'  # 翻译的网址
+    client = 'fanyideskweb'  # 服务器
+    inputStr = input('请输入你想翻译的内容: ')  # 输入的内容
+    sign = getSign(client, inputStr, salt, key)  # 获取sign值
+
+    #data值
+    data = {
+        'i' : inputStr,
+        'from' : 'AUTO',
+        'to' : 'AUTO',
+        'smartresult' : 'dict',
+        'doctype' : 'json',
+        'keyfrom' : 'fanyi.web',
+        'version' : '2.1',
+        'client' : client,
+        'salt' :  salt,
+        'sign' :  sign,
+        'ts' : timeStamp,
+        'bv' : '6463522ba46bac94c96fd37965fadc8d',
+        'action' : 'FY_BY_REALTlME'
+    }
+
+    data = urllib.parse.urlencode(data).encode('utf-8')                 #获取页面内容
+    req = urllib.request.Request(url, data, headers = headerData)
+    response = urllib.request.urlopen(req)
+    html = response.read().decode('utf-8')
+
+    print('翻译结果：', end = '')
+
+    html = html.replace(r'\r\n',"")             #删除多余的\r\n,\n
+    html = html.replace(r'\n',"")
+    dicts = eval(html)                          #将格式转成字典
+
+    print(dicts['translateResult'][0][0]['tgt'])    #获取第一翻译结果
+    print('原文：',dicts['translateResult'][0][0]['src'])  #获取原文
+    if dicts.get('smartResult',False) :             #如果有其他的翻译结果，则输出
+        entries = dicts['smartResult']['entries']
+        print('其他翻译：')
+        for i in entries:
+            if  i.isspace():
+                continue
+            elif len(i) == 0:
+                continue
+            print(i)
+
+
+
+if __name__ == '__main__':
+    translator()
